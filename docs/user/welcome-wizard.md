@@ -9,7 +9,11 @@ computer. From home, it adds compatible computers linked to your account and
 opens the app.
 
 Close setup while no import is running to go straight to the app. You can connect
-computers and agents later from Settings, or open `/welcome` to run setup again.
+computers and agents later from Settings. To bring in sessions started outside
+T3 Code, select **Resync sessions** at the bottom of the sidebar or in the command
+palette. It adds new Claude, Codex and Pi conversations to your existing projects.
+Folders that are not projects yet are imported from setup, which the resync result
+links to, or open `/welcome`.
 Direct links, such as Settings, open normally before setup is done.
 
 ## Connect your computers

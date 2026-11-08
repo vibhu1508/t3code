@@ -53,10 +53,12 @@ import {
   resolveEnvironmentMachineKind,
 } from "@t3tools/contracts";
 import { useLocation, useNavigate } from "@tanstack/react-router";
+import { useResyncSessions } from "./sidebar/useResyncSessions";
 import {
   ArrowLeftIcon,
   BugIcon,
   ChartNoAxesColumnIcon,
+  RefreshCwIcon,
   CheckIcon,
   ChevronRightIcon,
   CornerLeftUpIcon,
@@ -399,6 +401,7 @@ function OpenCommandPaletteDialog(props: {
   readonly initialContext: CommandPaletteReturnContext | undefined;
 }) {
   const navigate = useNavigate();
+  const resyncSessions = useResyncSessions();
   const pathname = useLocation({ select: (location) => location.pathname });
   const { openChildSearch, setOpen } = props;
   // Keyed by palette session: the intent and restored search only seed this
@@ -1606,6 +1609,17 @@ function OpenCommandPaletteDialog(props: {
       await navigate({ to: "/usage" });
     },
   });
+
+  if (resyncSessions !== null) {
+    actionItems.push({
+      kind: "action",
+      value: "action:resync-sessions",
+      searchTerms: ["resync", "sync", "import", "refresh", "sessions", "claude", "codex", "pi"],
+      title: "Resync sessions",
+      icon: <RefreshCwIcon className={ITEM_ICON_CLASS} />,
+      run: resyncSessions,
+    });
+  }
 
   for (const direction of [1, -1] as const) {
     const title = direction === 1 ? "Focus Next Workspace Area" : "Focus Previous Workspace Area";

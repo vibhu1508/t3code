@@ -293,7 +293,7 @@ it.effect(
         unownedPi,
       ]);
 
-      expect(yield* importer.run).toEqual({ importedCount: 3, skippedCount: 0 });
+      expect(yield* importer.run).toEqual({ importedCount: 3, newCount: 3, skippedCount: 0 });
       for (const source of [active, archived, deleted, ownedPi]) {
         const threadId = importId(source);
         expect(yield* Effect.option(projections.getThread(threadId))).toEqual(Option.none());
@@ -364,8 +364,8 @@ it.effect("rechecks ownership after the import reaches the commit transaction", 
     // Commit ownership after all pre-transaction reads, before the import acquires SQLite.
     const ownerId = yield* seedOwner(source);
     yield* Deferred.succeed(continueTransaction, undefined);
-    expect(yield* Fiber.join(pending)).toEqual({ importedCount: 0, skippedCount: 0 });
-    expect(yield* importer.run).toEqual({ importedCount: 0, skippedCount: 0 });
+    expect(yield* Fiber.join(pending)).toEqual({ importedCount: 0, newCount: 0, skippedCount: 0 });
+    expect(yield* importer.run).toEqual({ importedCount: 0, newCount: 0, skippedCount: 0 });
     const projections = yield* ProjectionStore.ProjectionStoreV2;
     const events = yield* EventStore.EventStoreV2;
     const runtimes = yield* ProviderSessionRuntime.ProviderSessionRuntimeRepository;
@@ -392,7 +392,7 @@ it.effect(
       const threadId = importId(source);
       const importer = yield* makeImporter([source]);
       yield* sql`CREATE TEMP TRIGGER fail_import BEFORE INSERT ON orchestration_events WHEN NEW.event_type = 'message.updated' BEGIN SELECT RAISE(ABORT, 'test publication failure'); END`;
-      expect(yield* importer.run).toEqual({ importedCount: 0, skippedCount: 1 });
+      expect(yield* importer.run).toEqual({ importedCount: 0, newCount: 0, skippedCount: 1 });
       expect(yield* events.read({ threadId }).pipe(Stream.runCollect)).toEqual([]);
       expect(yield* Effect.option(projections.getThread(threadId))).toEqual(Option.none());
       expect(yield* runtimes.list()).toEqual([]);
@@ -400,15 +400,15 @@ it.effect(
       yield* sql`DROP TRIGGER fail_import`;
 
       yield* sql`CREATE TEMP TRIGGER fail_runtime BEFORE INSERT ON provider_session_runtime BEGIN SELECT RAISE(ABORT, 'test runtime failure'); END`;
-      expect(yield* importer.run).toEqual({ importedCount: 0, skippedCount: 1 });
+      expect(yield* importer.run).toEqual({ importedCount: 0, newCount: 0, skippedCount: 1 });
       const committed = yield* events.read({ threadId }).pipe(Stream.runCollect);
       expect(committed).toHaveLength(6);
       expect(importer.published).toHaveLength(6);
       expect(yield* runtimes.list()).toEqual([]);
       yield* sql`DROP TRIGGER fail_runtime`;
 
-      expect(yield* importer.run).toEqual({ importedCount: 1, skippedCount: 0 });
-      expect(yield* importer.run).toEqual({ importedCount: 1, skippedCount: 0 });
+      expect(yield* importer.run).toEqual({ importedCount: 1, newCount: 0, skippedCount: 0 });
+      expect(yield* importer.run).toEqual({ importedCount: 1, newCount: 0, skippedCount: 0 });
       expect(yield* events.read({ threadId }).pipe(Stream.runCollect)).toEqual(committed);
       expect(importer.published).toHaveLength(6);
       expect(
@@ -442,7 +442,7 @@ it.effect("imports under a policy ceiling in the project's default, kept under t
         },
       ),
     );
-    expect(yield* importer.run).toEqual({ importedCount: 1, skippedCount: 0 });
+    expect(yield* importer.run).toEqual({ importedCount: 1, newCount: 1, skippedCount: 0 });
     expect((yield* projections.getThread(threadId)).runtimeMode).toBe("auto-accept-edits");
     expect(Option.getOrThrow(yield* runtimes.getByThreadId({ threadId })).runtimeMode).toBe(
       "auto-accept-edits",

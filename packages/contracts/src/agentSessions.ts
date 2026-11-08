@@ -74,6 +74,8 @@ export class AgentSessionImportProjectChangedError extends Schema.TaggedError<Ag
 
 export const AgentSessionImportResult = Schema.Struct({
   importedCount: NonNegativeInt,
+  // Absent on older servers. importedCount also counts conversations from earlier imports.
+  newCount: Schema.optional(NonNegativeInt),
   skippedCount: NonNegativeInt,
 });
 export type AgentSessionImportResult = typeof AgentSessionImportResult.Type;

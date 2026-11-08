@@ -234,6 +234,7 @@ const make = Effect.gen(function* () {
     const outcomes = scanner.recentThreads(project.workspaceRoot, completedSources);
     const importedThreadIds = new Set<ThreadId>();
     let importedCount = 0;
+    let newCount = 0;
     let skippedCount = 0;
 
     yield* Stream.runForEach(outcomes, (outcome) =>
@@ -430,6 +431,7 @@ const make = Effect.gen(function* () {
           if (committed.length === 0) return null;
           yield* persistRuntime;
           yield* runtimes.recordImportedTranscript({ threadId, source });
+          newCount += 1;
           return true;
         }).pipe(
           Effect.catch((cause) =>
@@ -449,7 +451,7 @@ const make = Effect.gen(function* () {
       }),
     );
 
-    return { importedCount, skippedCount } satisfies AgentSessionImportResult;
+    return { importedCount, newCount, skippedCount } satisfies AgentSessionImportResult;
   });
 
   return { importRecentAgentThreads };
