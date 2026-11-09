@@ -3,6 +3,7 @@ import {
   type AgentSessionSource,
   type ServerSettingsError,
   EventId,
+  MessageId,
   ProjectId,
   ProviderDriverKind,
   ProviderInstanceId,
@@ -422,6 +423,67 @@ it.effect(
         runtimePayload: { importedTranscripts: [source.source] },
       });
     }).pipe(Effect.scoped, Effect.provide(persistence)),
+);
+
+it.effect("reimporting a continued session keeps messages added in T3", () =>
+  Effect.gen(function* () {
+    const sink = yield* EventSink.EventSinkV2;
+    const events = yield* EventStore.EventStoreV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const source = candidate(CODEX_MODEL_SELECTION, "continued");
+    const threadId = importId(source);
+    expect(yield* (yield* makeImporter([source])).run).toEqual({
+      importedCount: 1,
+      newCount: 1,
+      skippedCount: 0,
+    });
+    const t3MessageId = MessageId.make(`${threadId}:t3`);
+    yield* sink.write({
+      events: [
+        {
+          id: EventId.make(`${threadId}:t3-message`),
+          type: "message.updated",
+          threadId,
+          occurredAt: now,
+          payload: {
+            createdBy: "user",
+            creationSource: "web",
+            id: t3MessageId,
+            threadId,
+            runId: null,
+            nodeId: null,
+            role: "user",
+            text: "Added in T3",
+            attachments: [],
+            streaming: false,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      ],
+    });
+    const before = yield* events.read({ threadId }).pipe(Stream.runCollect);
+    const continued = candidate(CODEX_MODEL_SELECTION, "continued");
+    continued.source.size = 200;
+    continued.source.mtimeMs = 5;
+    continued.thread.messages.push({
+      role: "user",
+      text: "Added in the terminal",
+      createdAt: timestamp,
+    });
+
+    expect(yield* (yield* makeImporter([continued])).run).toEqual({
+      importedCount: 1,
+      newCount: 0,
+      skippedCount: 0,
+    });
+    expect(yield* events.read({ threadId }).pipe(Stream.runCollect)).toEqual(before);
+    expect(
+      (yield* projections.getThreadRecords(threadId, ["messages"])).messages.map(
+        (message) => message.text,
+      ),
+    ).toEqual(["Fix it", "Fixed", "Added in T3"]);
+  }).pipe(Effect.scoped, Effect.provide(persistence)),
 );
 
 it.effect("imports under a policy ceiling in the project's default, kept under the ceiling", () =>
